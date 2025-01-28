@@ -8,26 +8,36 @@ import (
 )
 
 func main() {
+	config, errs := cmd.ParseArgs()
 
-	errs := cmd.ParseArgs()
-	if len(errs) != 0 {
-		for _, err := range errs {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
+	for _, err := range errs {
+		fmt.Printf("args parsing error: %s\n", err.Error())
 	}
-	fmt.Println(cmd.Ifa.GetFiles())
+	if len(errs) > 0 {
+		os.Exit(1)
+	}
 
-	for _, file := range cmd.Ifa.GetFiles() {
-		img, _, err := services.ReadImage(file)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		colors := services.GetColors(img)
-		tiles := services.MakeTiles(len(colors[0]), len(colors), 16, 16)
-		fmt.Println(tiles)
-		copy := services.DrawPallete(img, tiles)
-		services.SaveImage(copy, "copy-" + file)
+	config.SetDefaults()
+	errs = config.Validate()
+
+	for _, err := range errs {
+		fmt.Printf("configuration error: %s\n", err.Error())
 	}
+	if len(errs) > 0 {
+		os.Exit(1)
+	}
+}
+
+func RunExample() {
+	file := "path"
+	img, _, err := services.ReadImage(file)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	colors := services.GetColors(img)
+	tiles := services.MakeTiles(len(colors[0]), len(colors), 16, 16)
+	copy := services.DrawPallete(img, tiles)
+	services.SaveImage(copy, "copy-" + file)
+
 }

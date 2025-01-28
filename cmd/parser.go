@@ -1,79 +1,65 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"regexp"
+	"sort"
 )
 
-var Ifa *InputFileArgument
-var ofa *OutputFileArgument
-var flags map[string]Argument
+const flagRE = `^-[a-zA-Z]$` // single letter only
 
-func init() {
-	flags = make(map[string]Argument)
+func ParseArgs() (Config, []error) {
+	args := os.Args[1:]
+	flagsPos := FindAllFlags(args)
 
-	Ifa = &InputFileArgument{
-		ArgumentData {
-			flag: "-i",
-			description: "File(s) to create pallets from",
-			required: true,
-		},
-		make([]string, 0),
-	}
-	flags[Ifa.flag] = Ifa
-
-	ofa = &OutputFileArgument {
-		ArgumentData {
-			flag: "-o",
-			description: "Created pallet's file name",
-			required: false,
-		},
-		make([]string, 0),
-	}
-	flags[ofa.flag] = ofa
+	return MakeConfig(args, flagsPos)
 }
 
-func ParseArgs() []error {
-	args := os.Args[1:]
-	flagPattern := regexp.MustCompile(`^-[a-zA-Z]$`) // single letter only
+func FindAllFlags(args []string) (flagsPos map[int]string) {
+	flagsPos = make(map[int]string)
+	flagPattern := regexp.MustCompile(flagRE)
 	
-	var currentArg Argument
-	badFlag := false
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-
-		// check if its a flag
-		match := flagPattern.FindAllString(arg, -1)
-		if len(match) != 0 {
-			switch (arg) {
-			case Ifa.flag:
-				badFlag = false
-				currentArg = Ifa
-			case ofa.flag:
-				badFlag = false
-				currentArg = ofa
-			default:
-				badFlag = true
-				fmt.Println("unknow flag:", arg, "- values will be ignored until next flag found")
-			}
-			continue
+	for i, arg := range args {
+		match := flagPattern.FindString(arg)
+		if len(match) > 0 {
+			flagsPos[i] = match
 		}
-
-		// if its not a flag check if command is in valid state
-		if (badFlag) { continue }
-		currentArg.AddValue(arg)
 	}
 
-	// collect validation errors
+	return
+}
+
+func MakeConfig(args []string, flagsPos map[int]string) (Config, []error) {
+	// ensure flags order
+	positions := make([]int, 0, len(flagsPos))
+	for pos := range flagsPos {
+		positions = append(positions, pos)
+	}
+	sort.Ints(positions)
+
+	// make config
+	config := Config{}
 	errs := make([]error, 0)
-	for _, arg := range flags {
-		err := arg.Validate()
-		if err != nil {
-			errs = append(errs, err)
+	for i, pos := range positions {
+		firstArg := pos + 1
+		var lastArg int
+		if i == len(positions) - 1 {
+			lastArg = len(args)
+		} else {
+			lastArg = positions[i + 1]
+		}
+		switch flag := flagsPos[pos]; flag {
+		case "-i":
+			config.addInputFiles(args[firstArg:lastArg])
+		case "-g":
+			err := config.setGrid(args[firstArg:lastArg])
+			if err != nil { errs = append(errs, err) }
+		default:
+			errs = append(errs, errors.New("Unknown flag: " + flag + " (skipped)"))
 		}
 	}
 
-	return errs
+	return config, errs
 }
 
