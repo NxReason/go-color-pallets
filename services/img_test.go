@@ -1,6 +1,10 @@
 package services
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestMakeTilesCount(t *testing.T) {
 	width, height, rows, cols := 100, 150, 4, 5
@@ -35,4 +39,24 @@ func TestMakeTiles(t *testing.T) {
 			t.Fatalf("MakeTiles(11, 10, 3, 3) want Tile: %v at index: %d, got: %v", want[i], i, tile)
 		}
 	}
+}
+
+func TestMakePath_Filename(t *testing.T) {
+	want := "filename-pallete.jpg"
+	got := makePath("filename.jpg", "pallete")
+
+	assert.Equal(t, want, got)
+
+	// dots in filename
+	want = "file.name.test-grid.jpg"
+	got = makePath("file.name.test.jpg", "grid")
+
+	assert.Equal(t, want, got)
+}
+
+func TestMakePath_FileInsideFolder(t *testing.T) {
+	want := "fold/filename-grid.jpg"
+	got := makePath("fold/filename.jpg", "grid")
+
+	assert.Equal(t, want, got)
 }

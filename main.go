@@ -8,6 +8,10 @@ import (
 )
 
 func main() {
+	Run()
+}
+
+func Run() {
 	config, errs := cmd.ParseArgs()
 
 	for _, err := range errs {
@@ -26,18 +30,9 @@ func main() {
 	if len(errs) > 0 {
 		os.Exit(1)
 	}
-}
-
-func RunExample() {
-	file := "path"
-	img, _, err := services.ReadImage(file)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+	
+	errs = services.ProcessFiles(config)
+	for _, err := range errs {
+		fmt.Printf("image processing error: %s\n", err.Error())
 	}
-	colors := services.GetColors(img)
-	tiles := services.MakeTiles(len(colors[0]), len(colors), 16, 16)
-	copy := services.DrawPallete(img, tiles)
-	services.SaveImage(copy, "copy-" + file)
-
 }

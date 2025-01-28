@@ -1,12 +1,31 @@
 package services
 
 import (
+	"color-pallete/cmd"
 	"image"
 	"image/color"
+	_ "image/jpeg"
 	"image/png"
 	"log"
 	"os"
+	"strings"
 )
+
+func ProcessFiles(config cmd.Config) []error {
+	errs := make([]error, 0)
+	for _, path := range config.InputFiles {
+		img, _, err := ReadImage(path)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		colors := GetColors(img)
+		tiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
+		copy := DrawPallete(img, tiles)
+		SaveImage(copy, makePath(path, "pallete"))
+	}
+
+	return errs
+}
 
 func ReadImage(path string) (image.Image, string, error) {
 	srcFile, err := os.Open(path)
@@ -123,8 +142,24 @@ func SaveImage(img image.Image, path string) {
 	}
 	defer outFile.Close()
 
-	if err := png.Encode(outFile, img); err != nil {
+	if err = png.Encode(outFile, img); err != nil {
 		log.Fatal(err)
 	}
 }
 
+func makePath(original, suffix string) string {
+	parts := strings.Split(original, ".")
+	name := join(parts[:len(parts) - 1], ".")
+	name += "-" + suffix
+	return name + "." + parts[len(parts) - 1]
+}
+
+func join(parts []string, ch string) string {
+	var sb strings.Builder
+	for _, part := range parts[:len(parts) - 1] {
+		sb.WriteString(part)
+		sb.WriteString(ch)
+	}
+	sb.WriteString(parts[len(parts) - 1])
+	return sb.String()
+}
