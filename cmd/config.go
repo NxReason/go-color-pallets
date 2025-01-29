@@ -16,7 +16,10 @@ type Config struct {
 
 	GridRows int
 	GridCols int
-	gridSet bool
+	gridSet  bool
+
+	OutputWidth  int
+	OutputHeight int
 }
 
 func (c *Config) SetDefaults() {
@@ -69,6 +72,52 @@ func (c *Config) setGrid(args []string) error {
 }
 
 func (c *Config) parseGridFromString(str string) error {
+	rc, err := makeUniformPair(str)
+	if err != nil {
+		return errors.New("wrong grid format, " + err.Error())
+	}
+
+	rows, err := strconv.Atoi(rc[0])
+	if err != nil { return errors.New("can't convert value: " + rc[0] + " to number of rows") }
+	cols, err := strconv.Atoi(rc[1])
+	if err != nil { return errors.New("can't convert value: " + rc[1] + " to number of columns") }
+	c.GridRows, c.GridCols = rows, cols
+	return nil
+}
+
+func (c *Config) setOutputResolution(args []string) error {
+	const syntax = "acceptable syntax: [10x10] [10*10] [10 10]"
+	switch len(args) {
+	case 0:
+		return errors.New("not enough arguments for output resolution. " + syntax)
+	case 1:
+		err := c.parseResolutionFromString(args[0])
+		if err != nil { return err }
+	case 2:
+		err := c.parseResolutionFromString(args[0] + " " + args[1])
+		if err != nil { return err }
+	default:
+		return errors.New("too many arguments for output resolution. " + syntax)
+	}
+
+	return nil
+}
+
+func (c *Config) parseResolutionFromString(str string) error {
+	rc, err := makeUniformPair(str)
+	if err != nil {
+		return errors.New("wrong resolution format, " + err.Error())
+	}
+
+	width, err := strconv.Atoi(rc[0])
+	if err != nil { return errors.New("can't convert value: " + rc[0] + " to output width") }
+	height, err := strconv.Atoi(rc[1])
+	if err != nil { return errors.New("can't convert value: " + rc[1] + " to output height") }
+	c.OutputWidth, c.OutputHeight = width, height
+	return nil
+}
+
+func makeUniformPair(str string) ([]string, error) {
 	var uniform []rune
 	for _, ch := range str {
 		if ch == '*' || ch == 'x' {
@@ -80,14 +129,7 @@ func (c *Config) parseGridFromString(str string) error {
 
 	rc := strings.Split(string(uniform), " ")
 	if len(rc) != 2 {
-		return errors.New("wrong grid format, if single argument provided, acceptable formats: [10x10] [10*10]")
+		return nil, errors.New("when single argument provided, acceptable formats: [10x10] [10*10]")
 	}
-
-	rows, err := strconv.Atoi(rc[0])
-	if err != nil { return errors.New("can't convert value: " + rc[0] + " to number of rows") }
-	cols, err := strconv.Atoi(rc[1])
-	if err != nil { return errors.New("can't convert value: " + rc[1] + " to number of columns") }
-
-	c.GridRows, c.GridCols = rows, cols
-	return nil
+	return rc, nil
 }

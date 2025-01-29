@@ -55,6 +55,9 @@ func MakeConfig(args []string, flagsPos map[int]string) (Config, []error) {
 		case "-g":
 			err := config.setGrid(args[firstArg:lastArg])
 			if err != nil { errs = append(errs, err) }
+		case "-r":
+			err := config.setOutputResolution(args[firstArg:lastArg])
+			if err != nil { errs = append(errs, err) }
 		default:
 			errs = append(errs, errors.New("Unknown flag: " + flag + " (skipped)"))
 		}

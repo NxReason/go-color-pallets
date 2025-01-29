@@ -17,11 +17,24 @@ func ProcessFiles(config cmd.Config) []error {
 		img, _, err := ReadImage(path)
 		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
 		colors := GetColors(img)
-		tiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
-		copy := DrawPallete(img, tiles)
-		SaveImage(copy, makePath(path, "pallete"))
+		inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
+
+		dstBounds := img.Bounds()
+		outTiles := inTiles
+		if config.OutputHeight > 0 && config.OutputWidth > 0 {
+			dstBounds = image.Rectangle{
+				image.Point{ 0, 0 },
+				image.Point{ config.OutputWidth, config.OutputHeight },
+			}
+			outTiles = MakeTiles(config.OutputWidth, config.OutputHeight, config.GridRows, config.GridCols)
+		}
+		dst := image.NewRGBA(dstBounds)
+		
+		output := DrawPallete(img, inTiles, dst, outTiles)
+		SaveImage(output, makePath(path, "pallete"))
 	}
 
 	return errs
@@ -98,22 +111,19 @@ func MakeTiles(width, height int, rows, cols int) []Tile {
 	return tiles
 }
 
-func DrawPallete(src image.Image, tiles []Tile) image.Image {
-	bounds := src.Bounds()
-	dst := image.NewRGBA(bounds)
-
-	for _, tile := range tiles {
-		DrawTile(src, dst, tile)
+func DrawPallete(src image.Image, inTiles []Tile, dst *image.RGBA, outTiles []Tile) image.Image {
+	for i := range inTiles {
+		DrawTile(src, inTiles[i], dst, outTiles[i])
 	}
 
 	return dst
 }
 
-func DrawTile(src image.Image, dst *image.RGBA, tile Tile) {
+func DrawTile(src image.Image, inTile Tile, dst *image.RGBA, outTile Tile) {
 	var rTotal, gTotal, bTotal uint64
-	totalPixels := uint64((tile.XEnd - tile.XStart) * (tile.YEnd - tile.YStart))
-	for y := tile.YStart; y < tile.YEnd; y++ {
-		for x := tile.XStart; x < tile.XEnd; x++ {
+	totalPixels := uint64((inTile.XEnd - inTile.XStart) * (inTile.YEnd - inTile.YStart))
+	for y := inTile.YStart; y < inTile.YEnd; y++ {
+		for x := inTile.XStart; x < inTile.XEnd; x++ {
 			r, g, b, _ := src.At(x, y).RGBA()
 			rTotal += uint64(r >> 8)
 			gTotal += uint64(g >> 8)
@@ -128,8 +138,8 @@ func DrawTile(src image.Image, dst *image.RGBA, tile Tile) {
 		A: 255,
 	}
 
-	for y := tile.YStart; y < tile.YEnd; y++ {
-		for x := tile.XStart; x < tile.XEnd; x++ {
+	for y := outTile.YStart; y < outTile.YEnd; y++ {
+		for x := outTile.XStart; x < outTile.XEnd; x++ {
 			dst.Set(x, y, avgColor)
 		}
 	}

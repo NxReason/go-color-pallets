@@ -10,6 +10,7 @@ var testArgs = [][]string{
 	{},
 	{"-i", "input.jpg"},
 	{"-i", "input1.jpg", "input2.jpg", "-g", "25*25"},
+	{"-i", "input1.jpg", "-g", "8x8", "-r", "1024*768"},
 }
 
 func TestFindAllFlagsEmptyArgs(t *testing.T) {
@@ -90,4 +91,23 @@ func TestMakeConfig_InvalidArgs(t *testing.T) {
 	assert.Equal(want, got)
 	assert.Len(errs, 1)
 	assert.ErrorContains(errs[0], "wrong grid format")
+}
+
+func TestMakeConfig_GridAndReso(t *testing.T) {
+	assert := assert.New(t)
+	args := testArgs[3]
+	flagsPos := FindAllFlags(args)
+
+	got, errs := MakeConfig(args, flagsPos)
+	want := Config {
+		InputFiles: []string{"input1.jpg"},
+		GridRows: 8,
+		GridCols: 8,
+		gridSet: true,
+		OutputWidth: 1024,
+		OutputHeight: 768,
+	}
+
+	assert.Len(errs, 0)
+	assert.Equal(want, got)
 }

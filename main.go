@@ -5,10 +5,20 @@ import (
 	"color-pallete/services"
 	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
-	Run()
+	Bench(Run)
+}
+
+func Bench(fn func()) {
+	s := time.Now()
+	fn()
+	f := time.Now()
+
+	elapsed := float64(f.UnixMilli() - s.UnixMilli()) / 1000
+	fmt.Println("time:", elapsed)
 }
 
 func Run() {

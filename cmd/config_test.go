@@ -92,6 +92,8 @@ func TestParseGridFromString_InvalidValues(t *testing.T) {
 	assert.ErrorContains(err, "3.5")
 }
 
+// SET DEFAULTS
+
 func TestSetDefaults_Grid(t *testing.T) {
 	config := Config{}
 	config.SetDefaults()
@@ -106,6 +108,8 @@ func TestSetDefaults_GridSkip(t *testing.T) {
 	assert.Equal(t, -1, config.GridRows)
 	assert.Equal(t, -1, config.GridCols)
 }
+
+// VALIDATE
 
 func TestValidate_ValidState(t *testing.T) {
 	config := Config {
@@ -148,4 +152,59 @@ func TestValidate_InvalidState(t *testing.T) {
 	assert.ErrorContains(t, errs[0], "not enough input files")
 	assert.ErrorContains(t, errs[1], "number of grid rows")
 	assert.ErrorContains(t, errs[2], "number of grid columns")
+}
+
+// RESOLUTION
+
+func TestSetOutputResolution_ValidInput(t *testing.T) {
+	assert := assert.New(t)
+	argsX := []string {"1920x1080"}
+	argsM := []string {"1024*768"}
+	argsD := []string {"512", "256"}
+	config := Config{}
+
+	config.setOutputResolution(argsX)
+
+	assert.Equal(1920, config.OutputWidth)
+	assert.Equal(1080, config.OutputHeight)
+
+	config.setOutputResolution(argsM)
+	
+	assert.Equal(1024, config.OutputWidth)
+	assert.Equal(768, config.OutputHeight)
+	
+	config.setOutputResolution(argsD)
+	
+	assert.Equal(512, config.OutputWidth)
+	assert.Equal(256, config.OutputHeight)
+}
+
+func TestOutputResolution_WrongArgCount(t *testing.T) {
+	assert := assert.New(t)
+	argsZ := []string{}
+	argsF := []string{"1234", "764", "56", "361"}
+	config := Config{}
+
+	err := config.setOutputResolution(argsZ)
+
+	assert.ErrorContains(err, "not enough arguments for output")
+
+	err = config.setOutputResolution(argsF)
+
+	assert.ErrorContains(err, "too many arguments for output")
+}
+
+func TestOutputResolution_InvalidValues(t *testing.T) {
+	assert := assert.New(t)
+	invalidW := []string { "NaNx100" }
+	invalidH := []string { "50*1.5" }
+	config := Config{}
+
+	err := config.setOutputResolution(invalidW)
+
+	assert.ErrorContains(err, "to output width")
+	
+	err = config.setOutputResolution(invalidH)
+
+	assert.ErrorContains(err, "to output height")
 }
