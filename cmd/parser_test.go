@@ -111,3 +111,14 @@ func TestMakeConfig_GridAndReso(t *testing.T) {
 	assert.Len(errs, 0)
 	assert.Equal(want, got)
 }
+
+func TestMakeConfig_InputsFromFolder(t *testing.T) {
+	assert := assert.New(t)
+	args := []string{ "-f", "../fsmall", "-g", "10x10" }
+	flagsPos := FindAllFlags(args)
+
+	got, errs := MakeConfig(args, flagsPos)
+	
+	assert.Len(got.InputFiles, 4)
+	assert.Len(errs, 0)
+}

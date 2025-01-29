@@ -208,3 +208,46 @@ func TestOutputResolution_InvalidValues(t *testing.T) {
 
 	assert.ErrorContains(err, "to output height")
 }
+
+// FOLDER
+
+func TestIsImageFile_Valid(t *testing.T) {
+	assert := assert.New(t)
+	singlePng := "image.png"
+	singleJpg := "file.jpeg"
+	nestedJpg := "folder/filename.jpg"
+
+	assert.True(isImageFile(singlePng))
+	assert.True(isImageFile(singleJpg))
+	assert.True(isImageFile(nestedJpg))
+}
+
+func TestAddFolders_Valid(t *testing.T) {
+	assert := assert.New(t)
+	args := []string{"../fsmall"}
+	config := Config{}
+
+	config.addFolders(args)
+
+	assert.Len(config.InputFiles, 4)
+}
+
+func TestAddFolders_Nested(t *testing.T) {
+	assert := assert.New(t)
+	args := []string{"../fbig"}
+	config := Config{}
+
+	config.addFolders(args)
+
+	assert.Len(config.InputFiles, 12)
+}
+
+func TestAddFolders_Multi(t *testing.T) {
+	assert := assert.New(t)
+	args := []string { "../fbig", "../fsmall" }
+	config := Config{}
+
+	config.addFolders(args)
+
+	assert.Len(config.InputFiles, 16)
+}

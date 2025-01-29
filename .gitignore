@@ -1,5 +1,7 @@
 /build
 /images
 /backups
+/fsmall
+/fbig
 
 usage.txt

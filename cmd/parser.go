@@ -40,8 +40,10 @@ func MakeConfig(args []string, flagsPos map[int]string) (Config, []error) {
 
 	// make config
 	config := Config{}
+	var err error
 	errs := make([]error, 0)
 	for i, pos := range positions {
+		err = nil
 		firstArg := pos + 1
 		var lastArg int
 		if i == len(positions) - 1 {
@@ -53,14 +55,15 @@ func MakeConfig(args []string, flagsPos map[int]string) (Config, []error) {
 		case "-i":
 			config.addInputFiles(args[firstArg:lastArg])
 		case "-g":
-			err := config.setGrid(args[firstArg:lastArg])
-			if err != nil { errs = append(errs, err) }
+			err = config.setGrid(args[firstArg:lastArg])
 		case "-r":
-			err := config.setOutputResolution(args[firstArg:lastArg])
-			if err != nil { errs = append(errs, err) }
+			err = config.setOutputResolution(args[firstArg:lastArg])
+		case "-f":
+			err = config.addFolders(args[firstArg:lastArg])
 		default:
-			errs = append(errs, errors.New("Unknown flag: " + flag + " (skipped)"))
+			err = errors.New("Unknown flag: " + flag + " (skipped)")
 		}
+		if err != nil { errs = append(errs, err) }
 	}
 
 	return config, errs

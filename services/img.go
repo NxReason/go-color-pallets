@@ -2,6 +2,7 @@ package services
 
 import (
 	"color-pallete/cmd"
+	"errors"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -16,7 +17,7 @@ func ProcessFiles(config cmd.Config) []error {
 	for _, path := range config.InputFiles {
 		img, _, err := ReadImage(path)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, errors.New(path + " " + err.Error()))
 			continue
 		}
 		colors := GetColors(img)

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -10,6 +12,8 @@ const (
 	DEFAULT_ROWS = 8
 	DEFAULT_COLS = 8
 )
+
+var IMAGE_EXTENSIONS = [...]string { ".jpg", ".jpeg", ".png" }
 
 type Config struct {
 	InputFiles []string
@@ -50,6 +54,32 @@ func (c *Config) Validate() []error {
 
 func (c *Config) addInputFiles(files []string) {
 	c.InputFiles = append(c.InputFiles, files...)
+}
+
+func (c *Config) addFolders(folders []string) error {
+	for _, f := range folders {
+		err := filepath.Walk(f, func(path string, info os.FileInfo, err error) error {
+			if err != nil { return err }
+			
+			if !info.IsDir() && isImageFile(path) {
+				c.InputFiles = append(c.InputFiles, path)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isImageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	for _, validExt := range IMAGE_EXTENSIONS {
+		if ext == validExt { return true }
+	}
+	return false
 }
 
 func (c *Config) setGrid(args []string) error {
