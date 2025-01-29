@@ -2,6 +2,8 @@ package services
 
 import (
 	"color-pallete/cmd"
+	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/jpeg"
@@ -10,60 +12,53 @@ import (
 	"strings"
 )
 
+type Mode string
+const (
+	GRID 		Mode = "GRID"
+	PALLETE Mode = "PALLETE"
+)
+type PaintFunc func(image.Image, []Tile, *image.RGBA, []Tile) image.Image
+
+type GPResult struct {
+	path string
+	mode Mode
+	err error
+}
+
 func ProcessFiles(config cmd.Config) []error {
 	errs := make([]error, 0)
-	imageProcessingCh := make(chan ImageProcessingResult, len(config.InputFiles))
-	for _, path := range config.InputFiles {
-		go ProcessFileAsync(path, config, imageProcessingCh)
-		// img, _, err := ReadImage(path)
-		// if err != nil {
-		// 	errs = append(errs, errors.New(path + " " + err.Error()))
-		// 	continue
-		// }
-		// colors := GetColors(img)
-		// inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
+	filesCount := 2 * len(config.InputFiles)
+	imageProcessingCh := make(chan GPResult, filesCount)
 
-		// dstBounds := img.Bounds()
-		// outTiles := inTiles
-		// if config.OutputHeight > 0 && config.OutputWidth > 0 {
-		// 	dstBounds = image.Rectangle{
-		// 		image.Point{ 0, 0 },
-		// 		image.Point{ config.OutputWidth, config.OutputHeight },
-		// 	}
-		// 	outTiles = MakeTiles(config.OutputWidth, config.OutputHeight, config.GridRows, config.GridCols)
-		// }
-		// dst := image.NewRGBA(dstBounds)
-		
-		// output := DrawPallete(img, inTiles, dst, outTiles)
+	for _, path := range config.InputFiles {
+		go ProcessFileAsync(path, config, PALLETE, imageProcessingCh)
+		go ProcessFileAsync(path, config, GRID, imageProcessingCh)
 	}
 
-	for i := 0; i < len(config.InputFiles); i++ {
+	for i := 0; i < filesCount; i++ {
 		res := <-imageProcessingCh
-		if res.error != nil {
-			errs = append(errs, res.error)
+		if res.err != nil {
+			errs = append(errs, res.err)
 			continue
 		}
+		fmt.Printf("done: [ %s ] for %s (%d / %d)\n", string(res.mode), res.path, i + 1, filesCount)
 	}
 	
 	return errs
 }
 
-type ImageProcessingResult struct {
-	img image.Image
-	error
-}
-
-func ProcessFileAsync(path string, config cmd.Config, ch chan ImageProcessingResult) {
+func ProcessFileAsync(path string, config cmd.Config, mode Mode, ch chan GPResult) {
 	img, _, err := ReadImage(path)
 	if err != nil {
-		ch <- ImageProcessingResult{ nil, err }
+		ch <- GPResult{ path, mode, err}
 	}
 	colors := GetColors(img)
 	inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
 
 	dstBounds := img.Bounds()
 	outTiles := inTiles
-	if config.OutputHeight > 0 && config.OutputWidth > 0 {
+	shouldUseConfigBounds := (mode == PALLETE) && (config.OutputHeight > 0 && config.OutputWidth > 0)
+	if shouldUseConfigBounds {
 		dstBounds = image.Rectangle{
 			image.Point{ 0, 0 },
 			image.Point{ config.OutputWidth, config.OutputHeight },
@@ -72,14 +67,24 @@ func ProcessFileAsync(path string, config cmd.Config, ch chan ImageProcessingRes
 	}
 	dst := image.NewRGBA(dstBounds)
 	
-	output := DrawPallete(img, inTiles, dst, outTiles)
+	var Paint PaintFunc
+	switch mode {
+	case GRID:
+		Paint = DrawGrid
+	case PALLETE:
+		Paint = DrawPallete
+	default:
+		ch <- GPResult{ path, mode, errors.New("invalid paint mode, expected [GRID | PALLETE], got " + string(mode)) }
+	}
+	output := Paint(img, inTiles, dst, outTiles)
 
-	err = SaveImage(output, makePath(path, "pallete"))
+	suffix := strings.ToLower(string(mode))
+	err = SaveImage(output, makePath(path, suffix))
 	if err != nil {
-		ch <- ImageProcessingResult{ nil, err }
+		ch <- GPResult{ path, mode, err }
 	}
 
-	ch <- ImageProcessingResult{ output, nil }
+	ch <- GPResult{ path, mode, nil}
 }
 
 func ReadImage(path string) (image.Image, string, error) {
@@ -185,6 +190,34 @@ func DrawTile(src image.Image, inTile Tile, dst *image.RGBA, outTile Tile) {
 			dst.Set(x, y, avgColor)
 		}
 	}
+}
+
+func DrawGrid(src image.Image, tiles []Tile, dst *image.RGBA, _ []Tile) image.Image {
+	lineColor := color.RGBA { 0, 0, 0, 255 }
+	for _, tile := range tiles {
+		// copy non-grid colors
+		for y := tile.YStart; y < tile.YEnd; y++ {
+			for x := tile.XStart; x < tile.XEnd; x++ {
+				dst.Set(x, y, src.At(x, y))
+			}
+		}
+
+		// paint vertical lines
+		if tile.XEnd != src.Bounds().Max.X {
+			for y := tile.YStart; y < tile.YEnd; y++ {
+				dst.Set(tile.XEnd - 1, y, lineColor)
+			}
+		}
+
+		// paint horizontal lines
+		if tile.YEnd != src.Bounds().Max.Y {
+			for x := tile.XStart; x < tile.XEnd; x++ {
+				dst.Set(x, tile.YEnd - 1, lineColor)
+			}
+		}
+	}
+
+	return dst
 }
 
 func SaveImage(img image.Image, path string) error {
