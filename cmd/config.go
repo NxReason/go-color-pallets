@@ -13,7 +13,7 @@ const (
 	DEFAULT_COLS = 8
 )
 
-var IMAGE_EXTENSIONS = [...]string { ".jpg", ".jpeg", ".png" }
+var IMAGE_EXTENSIONS = [...]string { ".jpg", ".jpeg", ".png", ".webp" }
 
 type Mode string
 const (

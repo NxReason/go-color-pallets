@@ -9,7 +9,11 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/nickalie/go-webpbin"
+	_ "github.com/nickalie/go-webpbin"
 )
 
 type PaintFunc func(image.Image, []Tile, *image.RGBA, []Tile) image.Image
@@ -47,6 +51,7 @@ func ProcessFileAsync(path string, config cmd.Config, mode cmd.Mode, ch chan GPR
 	img, _, err := ReadImage(path)
 	if err != nil {
 		ch <- GPResult{ path, mode, err}
+		return
 	}
 	colors := GetColors(img)
 	inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
@@ -71,6 +76,7 @@ func ProcessFileAsync(path string, config cmd.Config, mode cmd.Mode, ch chan GPR
 		Paint = DrawPallete
 	default:
 		ch <- GPResult{ path, mode, errors.New("invalid paint mode, expected [GRID | PALLETE], got " + string(mode)) }
+		return
 	}
 	output := Paint(img, inTiles, dst, outTiles)
 
@@ -78,6 +84,7 @@ func ProcessFileAsync(path string, config cmd.Config, mode cmd.Mode, ch chan GPR
 	err = SaveImage(output, makePath(path, suffix))
 	if err != nil {
 		ch <- GPResult{ path, mode, err }
+		return
 	}
 
 	ch <- GPResult{ path, mode, nil}
@@ -91,7 +98,13 @@ func ReadImage(path string) (image.Image, string, error) {
 	defer srcFile.Close()
 
 	// Decode the source image
-	img, format, err := image.Decode(srcFile)
+	var img image.Image
+	var format string
+	if filepath.Ext(path) == ".webp" {
+		img, err = webpbin.Decode(srcFile)
+	} else {
+		img, format, err = image.Decode(srcFile)
+	}
 	if err != nil {
 		return nil, "", err
 	}
