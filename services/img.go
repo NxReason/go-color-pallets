@@ -2,43 +2,84 @@ package services
 
 import (
 	"color-pallete/cmd"
-	"errors"
 	"image"
 	"image/color"
 	_ "image/jpeg"
 	"image/png"
-	"log"
 	"os"
 	"strings"
 )
 
 func ProcessFiles(config cmd.Config) []error {
 	errs := make([]error, 0)
+	imageProcessingCh := make(chan ImageProcessingResult, len(config.InputFiles))
 	for _, path := range config.InputFiles {
-		img, _, err := ReadImage(path)
-		if err != nil {
-			errs = append(errs, errors.New(path + " " + err.Error()))
-			continue
-		}
-		colors := GetColors(img)
-		inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
+		go ProcessFileAsync(path, config, imageProcessingCh)
+		// img, _, err := ReadImage(path)
+		// if err != nil {
+		// 	errs = append(errs, errors.New(path + " " + err.Error()))
+		// 	continue
+		// }
+		// colors := GetColors(img)
+		// inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
 
-		dstBounds := img.Bounds()
-		outTiles := inTiles
-		if config.OutputHeight > 0 && config.OutputWidth > 0 {
-			dstBounds = image.Rectangle{
-				image.Point{ 0, 0 },
-				image.Point{ config.OutputWidth, config.OutputHeight },
-			}
-			outTiles = MakeTiles(config.OutputWidth, config.OutputHeight, config.GridRows, config.GridCols)
-		}
-		dst := image.NewRGBA(dstBounds)
+		// dstBounds := img.Bounds()
+		// outTiles := inTiles
+		// if config.OutputHeight > 0 && config.OutputWidth > 0 {
+		// 	dstBounds = image.Rectangle{
+		// 		image.Point{ 0, 0 },
+		// 		image.Point{ config.OutputWidth, config.OutputHeight },
+		// 	}
+		// 	outTiles = MakeTiles(config.OutputWidth, config.OutputHeight, config.GridRows, config.GridCols)
+		// }
+		// dst := image.NewRGBA(dstBounds)
 		
-		output := DrawPallete(img, inTiles, dst, outTiles)
-		SaveImage(output, makePath(path, "pallete"))
+		// output := DrawPallete(img, inTiles, dst, outTiles)
 	}
 
+	for i := 0; i < len(config.InputFiles); i++ {
+		res := <-imageProcessingCh
+		if res.error != nil {
+			errs = append(errs, res.error)
+			continue
+		}
+	}
+	
 	return errs
+}
+
+type ImageProcessingResult struct {
+	img image.Image
+	error
+}
+
+func ProcessFileAsync(path string, config cmd.Config, ch chan ImageProcessingResult) {
+	img, _, err := ReadImage(path)
+	if err != nil {
+		ch <- ImageProcessingResult{ nil, err }
+	}
+	colors := GetColors(img)
+	inTiles := MakeTiles(len(colors[0]), len(colors), config.GridRows, config.GridCols)
+
+	dstBounds := img.Bounds()
+	outTiles := inTiles
+	if config.OutputHeight > 0 && config.OutputWidth > 0 {
+		dstBounds = image.Rectangle{
+			image.Point{ 0, 0 },
+			image.Point{ config.OutputWidth, config.OutputHeight },
+		}
+		outTiles = MakeTiles(config.OutputWidth, config.OutputHeight, config.GridRows, config.GridCols)
+	}
+	dst := image.NewRGBA(dstBounds)
+	
+	output := DrawPallete(img, inTiles, dst, outTiles)
+
+	err = SaveImage(output, makePath(path, "pallete"))
+	if err != nil {
+		ch <- ImageProcessingResult{ nil, err }
+	}
+
+	ch <- ImageProcessingResult{ output, nil }
 }
 
 func ReadImage(path string) (image.Image, string, error) {
@@ -146,16 +187,17 @@ func DrawTile(src image.Image, inTile Tile, dst *image.RGBA, outTile Tile) {
 	}
 }
 
-func SaveImage(img image.Image, path string) {
+func SaveImage(img image.Image, path string) error {
 	outFile, err := os.Create(path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer outFile.Close()
 
 	if err = png.Encode(outFile, img); err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
 func makePath(original, suffix string) string {
