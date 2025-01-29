@@ -12,27 +12,23 @@ import (
 	"strings"
 )
 
-type Mode string
-const (
-	GRID 		Mode = "GRID"
-	PALLETE Mode = "PALLETE"
-)
 type PaintFunc func(image.Image, []Tile, *image.RGBA, []Tile) image.Image
 
 type GPResult struct {
 	path string
-	mode Mode
+	mode cmd.Mode
 	err error
 }
 
 func ProcessFiles(config cmd.Config) []error {
 	errs := make([]error, 0)
-	filesCount := 2 * len(config.InputFiles)
+	filesCount := len(config.Modes) * len(config.InputFiles)
 	imageProcessingCh := make(chan GPResult, filesCount)
 
 	for _, path := range config.InputFiles {
-		go ProcessFileAsync(path, config, PALLETE, imageProcessingCh)
-		go ProcessFileAsync(path, config, GRID, imageProcessingCh)
+		for _, m := range config.Modes {
+			go ProcessFileAsync(path, config, cmd.Mode(m), imageProcessingCh)
+		}
 	}
 
 	for i := 0; i < filesCount; i++ {
@@ -47,7 +43,7 @@ func ProcessFiles(config cmd.Config) []error {
 	return errs
 }
 
-func ProcessFileAsync(path string, config cmd.Config, mode Mode, ch chan GPResult) {
+func ProcessFileAsync(path string, config cmd.Config, mode cmd.Mode, ch chan GPResult) {
 	img, _, err := ReadImage(path)
 	if err != nil {
 		ch <- GPResult{ path, mode, err}
@@ -57,7 +53,7 @@ func ProcessFileAsync(path string, config cmd.Config, mode Mode, ch chan GPResul
 
 	dstBounds := img.Bounds()
 	outTiles := inTiles
-	shouldUseConfigBounds := (mode == PALLETE) && (config.OutputHeight > 0 && config.OutputWidth > 0)
+	shouldUseConfigBounds := (mode == cmd.PALLETE) && (config.OutputHeight > 0 && config.OutputWidth > 0)
 	if shouldUseConfigBounds {
 		dstBounds = image.Rectangle{
 			image.Point{ 0, 0 },
@@ -69,9 +65,9 @@ func ProcessFileAsync(path string, config cmd.Config, mode Mode, ch chan GPResul
 	
 	var Paint PaintFunc
 	switch mode {
-	case GRID:
+	case cmd.GRID:
 		Paint = DrawGrid
-	case PALLETE:
+	case cmd.PALLETE:
 		Paint = DrawPallete
 	default:
 		ch <- GPResult{ path, mode, errors.New("invalid paint mode, expected [GRID | PALLETE], got " + string(mode)) }

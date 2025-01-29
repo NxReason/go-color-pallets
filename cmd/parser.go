@@ -51,15 +51,18 @@ func MakeConfig(args []string, flagsPos map[int]string) (Config, []error) {
 		} else {
 			lastArg = positions[i + 1]
 		}
+		argSlice := args[firstArg:lastArg]
 		switch flag := flagsPos[pos]; flag {
 		case "-i":
-			config.addInputFiles(args[firstArg:lastArg])
+			config.addInputFiles(argSlice)
 		case "-g":
-			err = config.setGrid(args[firstArg:lastArg])
+			err = config.setGrid(argSlice)
 		case "-r":
-			err = config.setOutputResolution(args[firstArg:lastArg])
+			err = config.setOutputResolution(argSlice)
 		case "-f":
-			err = config.addFolders(args[firstArg:lastArg])
+			err = config.addFolders(argSlice)
+		case "-m":
+			config.setModes(argSlice)
 		default:
 			err = errors.New("Unknown flag: " + flag + " (skipped)")
 		}

@@ -15,6 +15,16 @@ const (
 
 var IMAGE_EXTENSIONS = [...]string { ".jpg", ".jpeg", ".png" }
 
+type Mode string
+const (
+	GRID 		Mode = "GRID"
+	PALLETE Mode = "PALLETE"
+)
+var Modes = map[Mode]string {
+	GRID: "GRID",
+	PALLETE: "PALLETE",
+}
+
 type Config struct {
 	InputFiles []string
 
@@ -24,12 +34,20 @@ type Config struct {
 
 	OutputWidth  int
 	OutputHeight int
+
+	Modes []string
 }
 
 func (c *Config) SetDefaults() {
 	if !c.gridSet {
 		c.GridRows = DEFAULT_ROWS
 		c.GridCols = DEFAULT_COLS
+	}
+
+	if len(c.Modes) == 0 {
+		for _, v := range Modes {
+			c.Modes = append(c.Modes, v)
+		}
 	}
 }
 
@@ -49,7 +67,21 @@ func (c *Config) Validate() []error {
 		errs = append(errs, errors.New("number of grid columns must be > 1. got " + strconv.Itoa(c.GridCols)))
 	}
 
+	// modes
+	for _, m := range c.Modes {
+		if !isValidMode(m) {
+			errs = append(errs, errors.New("invalid mode: " + m))
+		}
+	}
+
 	return errs
+}
+
+func isValidMode(m string) bool {
+	for _, v := range Modes {
+		if strings.ToUpper(m) == v { return true }
+	}
+	return false
 }
 
 func (c *Config) addInputFiles(files []string) {
@@ -80,6 +112,13 @@ func isImageFile(filename string) bool {
 		if ext == validExt { return true }
 	}
 	return false
+}
+
+func (c *Config) setModes(args []string) {
+	c.Modes = make([]string, len(args))
+	for i, a := range args {
+		c.Modes[i] = strings.ToUpper(a)
+	}
 }
 
 func (c *Config) setGrid(args []string) error {

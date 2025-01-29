@@ -109,6 +109,27 @@ func TestSetDefaults_GridSkip(t *testing.T) {
 	assert.Equal(t, -1, config.GridCols)
 }
 
+func TestSetDefaults_Modes(t *testing.T) {
+	assert := assert.New(t)
+	config := Config {}
+
+	config.SetDefaults()
+
+	assert.Len(config.Modes, 2)
+	assert.Equal(config.Modes[0], "GRID")
+	assert.Equal(config.Modes[1], "PALLETE")
+}
+
+func TestSetDefaults_ModesSkip(t *testing.T) {
+	assert := assert.New(t)
+	config := Config { Modes: []string{"GRID"}}
+
+	config.SetDefaults()
+
+	assert.Len(config.Modes, 1)
+	assert.Equal(config.Modes[0], "GRID")
+}
+
 // VALIDATE
 
 func TestValidate_ValidState(t *testing.T) {
@@ -152,6 +173,22 @@ func TestValidate_InvalidState(t *testing.T) {
 	assert.ErrorContains(t, errs[0], "not enough input files")
 	assert.ErrorContains(t, errs[1], "number of grid rows")
 	assert.ErrorContains(t, errs[2], "number of grid columns")
+}
+
+func TestValidate_InvalidModes(t *testing.T) {
+	assert := assert.New(t)
+	config := Config {
+		InputFiles: []string {"input.jpg"},
+		GridRows: 8,
+		GridCols: 8,
+		Modes: []string { "invalid mode", "GRID", "do nothing" },
+	}
+
+	errs := config.Validate()
+
+	assert.Len(errs, 2)
+	assert.ErrorContains(errs[0], "invalid mode")
+	assert.ErrorContains(errs[1], "invalid mode")
 }
 
 // RESOLUTION
@@ -250,4 +287,24 @@ func TestAddFolders_Multi(t *testing.T) {
 	config.addFolders(args)
 
 	assert.Len(config.InputFiles, 16)
+}
+
+// MODES
+
+func TestSetModes(t *testing.T) {
+	assert := assert.New(t)
+	argsS := []string { "GRID" }
+	argsM := []string{ "GRID", "PALLETE" }
+	config := Config{}
+
+	config.setModes(argsM)
+
+	assert.Len(config.Modes, 2)
+	assert.Equal(config.Modes[0], "GRID")
+	assert.Equal(config.Modes[1], "PALLETE")
+
+	config.setModes(argsS)
+
+	assert.Len(config.Modes, 1)
+	assert.Equal(config.Modes[0], "GRID")
 }
